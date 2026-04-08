@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { GameProvider } from '@/lib/gameContext'
 
 export const metadata: Metadata = {
   title: 'Word Impostor Game',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-gray-950 text-gray-50">
-        {children}
+        <GameProvider>
+          {children}
+        </GameProvider>
       </body>
     </html>
   )
