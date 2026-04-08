@@ -23,10 +23,6 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
   const handleStartGame = async () => {
     setLoading(true)
     try {
-      // If room doesn't have rounds set, update it first
-      if (!room.totalRounds) {
-        // Create new room with rounds - for now just start
-      }
       await gameService.startGame(room.id)
     } catch (error) {
       console.error(error)
@@ -65,8 +61,8 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
           {!isFirstRound && (
             <div className="mb-4">
               <p className="text-gray-300">
-                Round <span className="font-bold text-blue-400">{currentRoundNum}</span> of{' '}
-                <span className="font-bold text-blue-400">{room.totalRounds || 3}</span>
+                Round <span className="font-bold text-blue-400">{currentRoundNum}</span> of 2{' '}
+                <span className="text-sm text-gray-400">(Cycle {room.impostorCycle || 1} of {room.totalImpostorCycles || 2})</span>
               </p>
             </div>
           )}
