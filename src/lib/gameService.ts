@@ -158,16 +158,16 @@ export const gameService = {
 
     // Assign words
     const wordPairs = [
-      { main: 'toothbrush', impostor: 'cleaning' },
-      { main: 'basketball', impostor: 'ball' },
-      { main: 'pizza', impostor: 'food' },
-      { main: 'computer', impostor: 'electronics' },
+      { main: 'War', impostor: 'conflict' },
+      { main: 'Cloth', impostor: 'fabric' },
+      { main: 'Nemo', impostor: 'fish' },
+      { main: 'Pool', impostor: 'water' },
       { main: 'airplane', impostor: 'travel' },
-      { main: 'library', impostor: 'books' },
-      { main: 'restaurant', impostor: 'dining' },
-      { main: 'hospital', impostor: 'health' },
-      { main: 'supermarket', impostor: 'shopping' },
-      { main: 'telephone', impostor: 'communication' },
+      { main: 'Plate', impostor: 'dish' },
+      { main: 'Ruler', impostor: 'leader' },
+      { main: 'clock', impostor: 'time' },
+      { main: 'supermarket', impostor: 'store' },
+      { main: 'Golf', impostor: 'sport' },
     ]
 
     const wordPair = wordPairs[Math.floor(Math.random() * wordPairs.length)]
