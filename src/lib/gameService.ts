@@ -212,10 +212,25 @@ export const gameService = {
       })
     } else {
       // Otherwise go back to waiting for next round with same impostor
+      // Clear descriptions for next round - build clean player objects without undefined values
+      const updatedPlayers = room.players.map((player) => {
+        const cleanPlayer: any = {
+          id: player.id,
+          name: player.name,
+          isImpostor: player.isImpostor,
+          description: '',
+        }
+        if (player.word !== undefined) cleanPlayer.word = player.word
+        if (player.voted !== undefined) cleanPlayer.voted = player.voted
+        if (player.isAlive !== undefined) cleanPlayer.isAlive = player.isAlive
+        return cleanPlayer
+      })
+
       const roomRef = doc(db, 'gameRooms', roomId)
       await updateDoc(roomRef, {
         status: 'waiting',
-        currentPhase: undefined,
+        currentPhase: 'description',
+        players: updatedPlayers,
       })
     }
   },
