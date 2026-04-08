@@ -42,6 +42,20 @@ export interface GameRoom {
   impostorCycle: number
 }
 
+// Helper function to clean player objects (remove undefined values)
+function cleanPlayer(player: Player): any {
+  const cleanPlayer: any = {
+    id: player.id,
+    name: player.name,
+    isImpostor: player.isImpostor,
+  }
+  if (player.word !== undefined) cleanPlayer.word = player.word
+  if (player.description !== undefined && player.description !== '') cleanPlayer.description = player.description
+  if (player.voted !== undefined && player.voted !== '') cleanPlayer.voted = player.voted
+  if (player.isAlive !== undefined) cleanPlayer.isAlive = player.isAlive
+  return cleanPlayer
+}
+
 export const gameService = {
   // Create a new game room
   async createGameRoom(hostName: string, roomName: string, impostorCycles: number = 2): Promise<string> {
@@ -159,11 +173,24 @@ export const gameService = {
     const wordPair = wordPairs[Math.floor(Math.random() * wordPairs.length)]
 
     // Assign words to players - impostor gets NO WORD
-    const updatedPlayers = room.players.map((player) => ({
-      ...player,
-      word: player.id === impostorId ? null : wordPair.main,
-      isImpostor: player.id === impostorId,
-    }))
+    const updatedPlayers = room.players.map((player) => {
+      const cleanedPlayer = {
+        id: player.id,
+        name: player.name,
+        isImpostor: player.id === impostorId,
+        word: player.id === impostorId ? undefined : wordPair.main,
+      } as any
+
+      // Add optional fields if they exist
+      if (player.description) cleanedPlayer.description = player.description
+      if (player.voted) cleanedPlayer.voted = player.voted
+      if (player.isAlive !== undefined) cleanedPlayer.isAlive = player.isAlive
+
+      // Remove word field if undefined
+      if (cleanedPlayer.word === undefined) delete cleanedPlayer.word
+
+      return cleanedPlayer
+    })
 
     const roomRef = doc(db, 'gameRooms', roomId)
     await updateDoc(roomRef, {
@@ -186,9 +213,14 @@ export const gameService = {
     const room = await this.getGameRoom(roomId)
     if (!room) throw new Error('Room not found')
 
-    const updatedPlayers = room.players.map((player) =>
-      player.id === playerId ? { ...player, description } : player
-    )
+    const updatedPlayers = room.players.map((player) => {
+      if (player.id === playerId) {
+        const cleanedPlayer = cleanPlayer(player)
+        cleanedPlayer.description = description
+        return cleanedPlayer
+      }
+      return cleanPlayer(player)
+    })
 
     const roomRef = doc(db, 'gameRooms', roomId)
     await updateDoc(roomRef, {
@@ -212,18 +244,11 @@ export const gameService = {
       })
     } else {
       // Otherwise go back to waiting for next round with same impostor
-      // Clear descriptions for next round - build clean player objects without undefined values
+      // Clear descriptions for next round
       const updatedPlayers = room.players.map((player) => {
-        const cleanPlayer: any = {
-          id: player.id,
-          name: player.name,
-          isImpostor: player.isImpostor,
-          description: '',
-        }
-        if (player.word !== undefined) cleanPlayer.word = player.word
-        if (player.voted !== undefined) cleanPlayer.voted = player.voted
-        if (player.isAlive !== undefined) cleanPlayer.isAlive = player.isAlive
-        return cleanPlayer
+        const cleaned = cleanPlayer(player)
+        cleaned.description = ''
+        return cleaned
       })
 
       const roomRef = doc(db, 'gameRooms', roomId)
@@ -247,9 +272,14 @@ export const gameService = {
     const votes = room.playerVotes || {}
     votes[voterId] = votedPlayerId
 
-    const updatedPlayers = room.players.map((player) =>
-      player.id === voterId ? { ...player, voted: votedPlayerId } : player
-    )
+    const updatedPlayers = room.players.map((player) => {
+      if (player.id === voterId) {
+        const cleanedPlayer = cleanPlayer(player)
+        cleanedPlayer.voted = votedPlayerId
+        return cleanedPlayer
+      }
+      return cleanPlayer(player)
+    })
 
     const roomRef = doc(db, 'gameRooms', roomId)
     await updateDoc(roomRef, {
@@ -308,22 +338,34 @@ export const gameService = {
     const room = await this.getGameRoom(roomId)
     if (!room) throw new Error('Room not found')
 
-    const resetPlayers = room.players.map((player) => ({
-      ...player,
-      isImpostor: false,
-      isAlive: true,
-    }))
+    // Build clean player objects without undefined values
+    const resetPlayers = room.players.map((player) => {
+      const cleaned = cleanPlayer(player)
+      cleaned.isImpostor = false
+      cleaned.isAlive = true
+      return cleaned
+    })
 
     // Check if we have more impostors to play
     const nextCycle = (room.impostorCycle || 0) + 1
     const hasMoreCycles = nextCycle <= room.totalImpostorCycles
 
     const roomRef = doc(db, 'gameRooms', roomId)
-    await updateDoc(roomRef, {
-      status: hasMoreCycles ? 'waiting' : 'ended',
-      currentPhase: undefined,
-      players: resetPlayers,
-    })
+    
+    if (hasMoreCycles) {
+      // Continue with next impostor cycle
+      await updateDoc(roomRef, {
+        status: 'waiting',
+        currentRound: 0,
+        players: resetPlayers,
+      })
+    } else {
+      // Game ended, no more cycles
+      await updateDoc(roomRef, {
+        status: 'ended',
+        players: resetPlayers,
+      })
+    }
   },
 
   // Leave room
