@@ -139,8 +139,6 @@ export const gameService = {
       ...player,
       word: player.id === impostorId ? wordPair.impostor : wordPair.main,
       isImpostor: player.id === impostorId,
-      voted: undefined,
-      description: undefined,
     }))
 
     const roomRef = doc(db, 'gameRooms', roomId)
@@ -151,7 +149,6 @@ export const gameService = {
       mainWord: wordPair.main,
       impostorWord: wordPair.impostor,
       impostorId,
-      playerVotes: {},
     })
   },
 
@@ -257,9 +254,6 @@ export const gameService = {
 
     const resetPlayers = room.players.map((player) => ({
       ...player,
-      word: undefined,
-      description: undefined,
-      voted: undefined,
       isImpostor: false,
       isAlive: true,
     }))
@@ -267,12 +261,7 @@ export const gameService = {
     const roomRef = doc(db, 'gameRooms', roomId)
     await updateDoc(roomRef, {
       status: 'waiting',
-      currentPhase: undefined,
       players: resetPlayers,
-      mainWord: undefined,
-      impostorWord: undefined,
-      impostorId: undefined,
-      playerVotes: {},
     })
   },
 
