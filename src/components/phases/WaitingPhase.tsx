@@ -15,6 +15,7 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
   const { clearGame } = useGame()
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [selectedRounds, setSelectedRounds] = useState(3)
 
   const isHost = room.host === room.players.find((p) => p.id === playerId)?.name
   const canStartGame = room.players.length >= 3
@@ -22,6 +23,10 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
   const handleStartGame = async () => {
     setLoading(true)
     try {
+      // If room doesn't have rounds set, update it first
+      if (!room.totalRounds) {
+        // Create new room with rounds - for now just start
+      }
       await gameService.startGame(room.id)
     } catch (error) {
       console.error(error)
@@ -48,12 +53,23 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
     }
   }
 
+  const isFirstRound = (room.currentRound || 0) === 0
+  const currentRoundNum = room.currentRound || 1
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-black p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 pt-8">
           <h1 className="text-4xl font-bold text-white mb-2">{room.name}</h1>
+          {!isFirstRound && (
+            <div className="mb-4">
+              <p className="text-gray-300">
+                Round <span className="font-bold text-blue-400">{currentRoundNum}</span> of{' '}
+                <span className="font-bold text-blue-400">{room.totalRounds || 3}</span>
+              </p>
+            </div>
+          )}
           <p className="text-gray-300 mb-4">Room ID: {room.id}</p>
           <button
             onClick={handleCopyRoomId}
@@ -98,12 +114,20 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
                 <p className="text-lg font-semibold text-blue-400">Waiting for players</p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Min Players</p>
-                <p className="text-lg font-semibold text-white">3 players</p>
+                <p className="text-sm text-gray-400">Current Round</p>
+                <p className="text-lg font-semibold text-white">
+                  {room.currentRound || 1}
+                  <span className="text-gray-400 text-sm ml-2">out of 2 per impostor</span>
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Max Players</p>
-                <p className="text-lg font-semibold text-white">12 players</p>
+                <p className="text-sm text-gray-400">Impostor Cycles</p>
+                <p className="text-lg font-semibold text-white">
+                  {room.impostorCycle || 0} / {room.totalImpostorCycles || 2}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-gray-700">
+                <p className="text-xs text-gray-400">Flow: 2 rounds → Vote → Next Impostor</p>
               </div>
               <div className="pt-3 border-t border-gray-700">
                 <p className="text-sm text-gray-300">
@@ -124,7 +148,7 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
               disabled={!canStartGame || loading}
               className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors"
             >
-              {loading ? 'Starting...' : 'Start Game'}
+              {loading ? 'Loading...' : isFirstRound ? 'Start Game' : 'Next Round'}
             </button>
           )}
           <button
@@ -140,12 +164,20 @@ export default function WaitingPhase({ room, playerId }: WaitingPhaseProps) {
           <h3 className="text-xl font-bold text-white mb-4">How to Play</h3>
           <ol className="space-y-2 text-gray-300 list-decimal list-inside">
             <li>Gather 3-12 players in this room</li>
-            <li>Host clicks "Start Game" when everyone is ready</li>
-            <li>Each player gets a word (impostor gets a different one)</li>
+            <li>Host clicks "Start Game" - Round 1 begins with hidden impostor</li>
+            <li>Regular players get a word (e.g., "computer")</li>
+            <li>🕵️ <strong>The impostor gets NO WORD</strong> - their word is hidden!</li>
             <li>Players describe their word using just ONE word</li>
-            <li>Team votes to find the impostor</li>
-            <li>If impostor is found, they lose. If not, impostor wins!</li>
+            <li>Impostor listens to descriptions and tries to blend in with a vague description</li>
+            <li>Host clicks "Next Round" (same impostor, new main word)</li>
+            <li>Round 2 happens - same impostor, fresh challenge to guess the new word</li>
+            <li><strong>After Round 2:</strong> Team votes together to find the impostor</li>
+            <li>Results reveal if impostor was caught or if they fooled everyone!</li>
+            <li>Repeat with new impostor for multiple cycles</li>
           </ol>
+          <p className="text-yellow-300 text-sm mt-4 font-semibold">
+            💡 Tip: The impostor has 2 rounds to figure out your word from your descriptions!
+          </p>
         </div>
       </div>
     </div>

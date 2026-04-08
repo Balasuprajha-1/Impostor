@@ -37,6 +37,7 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
   const eliminatedPlayer = room.players.find((p) => p.id === eliminatedPlayerId)
   const isImpostorEliminated = eliminatedPlayerId === room.impostorId
   const currentPlayer = room.players.find((p) => p.id === playerId)
+  const hasMoreCycles = (room.impostorCycle || 1) < (room.totalImpostorCycles || 2)
 
   const handlePlayAgain = async () => {
     setLoading(true)
@@ -67,6 +68,9 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
         {/* Header */}
         <div className="text-center mb-8 pt-8">
           <h1 className="text-4xl font-bold text-white mb-2">Results</h1>
+          <p className="text-gray-300 text-lg">
+            Impostor Cycle {room.impostorCycle || 1} of {room.totalImpostorCycles || 2}
+          </p>
         </div>
 
         {/* Main Result */}
@@ -90,33 +94,27 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
         </div>
 
         {/* Game Info */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Word Info */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">The Words</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Main Word</p>
-                <p className="text-3xl font-bold text-blue-400">{room.mainWord}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Impostor Word</p>
-                <p className="text-3xl font-bold text-red-400">{room.impostorWord}</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid md:grid-cols-1 gap-6 mb-8">
 
           {/* Impostor Info */}
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-2xl font-bold text-white mb-4">The Impostor</h2>
             <div className="bg-red-900 border-2 border-red-600 rounded-lg p-4">
-              <p className="text-red-200 text-sm mb-2">Impostor was:</p>
-              <p className="text-3xl font-bold text-red-100">
+              <p className="text-red-200 text-sm mb-2">Impostor Name:</p>
+              <p className="text-3xl font-bold text-red-100 mb-4">
                 {room.players.find((p) => p.id === room.impostorId)?.name}
               </p>
-              <p className="text-red-200 text-sm mt-3">
-                Said: {room.players.find((p) => p.id === room.impostorId)?.description}
-              </p>
+              <div className="border-t border-red-700 pt-3 mt-3">
+                <p className="text-red-200 text-sm mb-1">Their Word Was:</p>
+                <p className="text-3xl font-bold text-red-300">🕵️ ??? (Hidden!)</p>
+                <p className="text-red-300 text-xs mt-1">They had to guess: {room.mainWord}</p>
+              </div>
+              <div className="border-t border-red-700 pt-3 mt-3">
+                <p className="text-red-200 text-sm mb-1">They Described it as:</p>
+                <p className="text-xl font-bold text-red-300">
+                  "{room.players.find((p) => p.id === room.impostorId)?.description}"
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -160,27 +158,41 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
         <div className="bg-gray-800 rounded-lg p-6 mb-8">
           <h2 className="text-2xl font-bold text-white mb-4">Eliminated This Round</h2>
           <div
-            className={`p-6 rounded-lg border-2 text-center ${
+            className={`p-6 rounded-lg border-2 ${
               isImpostorEliminated
                 ? 'bg-green-900 border-green-600'
                 : 'bg-red-900 border-red-600'
             }`}
           >
-            <p className="text-2xl font-bold text-white mb-2">
+            <p className="text-2xl font-bold text-white mb-3">
               {eliminatedPlayer?.name}
             </p>
-            <p className={`text-sm ${isImpostorEliminated ? 'text-green-200' : 'text-red-200'}`}>
-              Got {maxVotes} vote{maxVotes !== 1 ? 's' : ''}
-            </p>
-            <p className={`text-sm mt-2 ${isImpostorEliminated ? 'text-green-200' : 'text-red-200'}`}>
-              Word was: {eliminatedPlayer?.word}
-            </p>
+            <div className="space-y-2">
+              <div>
+                <p className={`text-sm ${isImpostorEliminated ? 'text-green-200' : 'text-red-200'}`}>
+                  Received Votes:
+                </p>
+                <p className="text-lg font-bold text-white">{maxVotes}</p>
+              </div>
+              <div>
+                <p className={`text-sm ${isImpostorEliminated ? 'text-green-200' : 'text-red-200'}`}>
+                  Their Word Was:
+                </p>
+                <p className="text-lg font-bold text-white">{eliminatedPlayer?.word}</p>
+              </div>
+              <div>
+                <p className={`text-sm ${isImpostorEliminated ? 'text-green-200' : 'text-red-200'}`}>
+                  They Described it as:
+                </p>
+                <p className="text-lg font-bold text-white">"{eliminatedPlayer?.description}"</p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* All Player Answers */}
         <div className="bg-gray-800 rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-4">All Descriptions</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">All Players & Their Descriptions</h2>
           <div className="grid md:grid-cols-2 gap-4">
             {room.players.map((player) => (
               <div
@@ -191,28 +203,48 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
                     : 'bg-blue-900 border-blue-600'
                 }`}
               >
-                <p className="font-semibold text-white">
-                  {player.name}
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-semibold text-white">
+                    {player.name}
+                  </p>
                   {player.id === room.impostorId && (
-                    <span className="ml-2 text-sm text-red-300">(Impostor)</span>
+                    <span className="text-xs bg-red-700 text-red-100 px-2 py-1 rounded">
+                      IMPOSTOR
+                    </span>
                   )}
+                </div>
+                <p className="text-gray-300 text-sm mb-2">
+                  Word: <span className="font-bold text-white">
+                    {player.id === room.impostorId ? '🕵️ ??? (Hidden!)' : player.word}
+                  </span>
                 </p>
-                <p className="text-gray-300 text-sm mt-1">Word: {player.word}</p>
-                <p className="text-white font-bold mt-1">Said: {player.description}</p>
+                <p className="text-gray-300 text-sm">
+                  Described as: <span className="font-bold text-white">"{player.description}"</span>
+                </p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={handlePlayAgain}
-            disabled={loading}
-            className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors"
-          >
-            {loading ? 'Loading...' : 'Play Again'}
-          </button>
+        <div className="flex gap-4 justify-center mb-8">
+          {hasMoreCycles ? (
+            <button
+              onClick={handlePlayAgain}
+              disabled={loading}
+              className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+            >
+              {loading ? 'Loading...' : 'Play Next Impostor'}
+            </button>
+          ) : (
+            <button
+              onClick={handlePlayAgain}
+              disabled={loading}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+            >
+              {loading ? 'Loading...' : 'Play Again'}
+            </button>
+          )}
           <button
             onClick={handleLeaveRoom}
             className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
@@ -220,6 +252,14 @@ export default function ResultsPhase({ room, playerId }: ResultsPhaseProps) {
             Leave Room
           </button>
         </div>
+
+        {hasMoreCycles && (
+          <div className="bg-blue-900 border border-blue-600 rounded-lg p-4 mb-8 text-center">
+            <p className="text-blue-100 text-lg font-semibold">
+              ✨ Great round! New impostor coming up...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

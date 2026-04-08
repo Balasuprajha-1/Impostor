@@ -20,6 +20,7 @@ export default function DescriptionPhase({
 
   const currentPlayer = room.players.find((p) => p.id === playerId)
   const allSubmitted = room.players.every((p) => p.description)
+  const isRound2 = (room.currentRound || 1) === 2
 
   const handleSubmitDescription = async () => {
     if (!description.trim()) return
@@ -52,6 +53,9 @@ export default function DescriptionPhase({
         {/* Header */}
         <div className="text-center mb-8 pt-8">
           <h1 className="text-4xl font-bold text-white mb-2">Description Phase</h1>
+          <p className="text-xl text-blue-400 mb-2">
+            Round {room.currentRound} of 2
+          </p>
           <p className="text-gray-300">Describe your word in just ONE word!</p>
         </div>
 
@@ -63,8 +67,9 @@ export default function DescriptionPhase({
               {currentPlayer?.isImpostor && (
                 <div className="p-4 bg-red-900 border-2 border-red-600 rounded-lg mb-4">
                   <p className="text-red-100 font-bold">⚠️ You are the IMPOSTOR!</p>
-                  <p className="text-red-200 text-sm mt-1">
-                    Your word: {currentPlayer.word}
+                  <p className="text-red-200 text-4xl font-bold mt-2">🕵️</p>
+                  <p className="text-red-300 text-sm mt-3">
+                    Your word has been hidden. Listen to others' descriptions and guess what it is!
                   </p>
                 </div>
               )}
@@ -81,16 +86,25 @@ export default function DescriptionPhase({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Your Description (one word only)
+                    {currentPlayer?.isImpostor
+                      ? 'Your Description (be mysterious!)'
+                      : 'Your Description (one word only)'}
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Type one word..."
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                    onChange={(e) => setDescription(e.target.value.slice(0, 100))}
+                    placeholder={
+                      currentPlayer?.isImpostor
+                        ? "e.g., 'useful', 'common', 'everyday'..."
+                        : 'Type one word...'
+                    }
+                    maxLength={100}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 h-20 resize-none"
                     disabled={submitted}
                   />
+                  <p className="text-xs text-gray-400 mt-1 text-right">
+                    {description.length}/100
+                  </p>
                 </div>
                 <button
                   onClick={handleSubmitDescription}
@@ -134,7 +148,7 @@ export default function DescriptionPhase({
                   disabled={loading}
                   className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold rounded transition-colors"
                 >
-                  {loading ? 'Loading...' : 'Move to Voting'}
+                  {loading ? 'Loading...' : isRound2 ? 'Move to Voting' : 'Go to Next Round'}
                 </button>
               </div>
             )}

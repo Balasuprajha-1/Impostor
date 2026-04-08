@@ -36,11 +36,15 @@ export interface GameRoom {
   createdAt: Timestamp
   currentPhase?: 'description' | 'voting' | 'results'
   playerVotes?: Record<string, string>
+  currentRound: number
+  roundsPerImpostor: number
+  totalImpostorCycles: number
+  impostorCycle: number
 }
 
 export const gameService = {
   // Create a new game room
-  async createGameRoom(hostName: string, roomName: string): Promise<string> {
+  async createGameRoom(hostName: string, roomName: string, impostorCycles: number = 2): Promise<string> {
     const roomId = uuidv4()
     const room: GameRoom = {
       id: roomId,
@@ -55,6 +59,10 @@ export const gameService = {
           isAlive: true,
         },
       ],
+      currentRound: 0,
+      roundsPerImpostor: 2,
+      totalImpostorCycles: impostorCycles,
+      impostorCycle: 0,
       createdAt: serverTimestamp() as Timestamp,
     }
 
@@ -114,8 +122,24 @@ export const gameService = {
     const room = await this.getGameRoom(roomId)
     if (!room) throw new Error('Room not found')
 
-    // Select random impostor
-    const impostorIndex = Math.floor(Math.random() * room.players.length)
+    const nextRound = (room.currentRound || 0) + 1
+    
+    // Determine if we start a new impostor cycle
+    const roundInCycle = ((nextRound - 1) % room.roundsPerImpostor) + 1
+    const CycleNumber = Math.floor((nextRound - 1) / room.roundsPerImpostor)
+    
+    // Find host player
+    const hostPlayer = room.players.find((p) => p.name === room.host)
+    const hostPlayerId = hostPlayer?.id
+
+    // Select impostor: changes after every 2 rounds, but never the host
+    let impostorIndex = CycleNumber % room.players.length
+    
+    // If selected impostor is the host, pick the next player
+    if (room.players[impostorIndex].id === hostPlayerId) {
+      impostorIndex = (impostorIndex + 1) % room.players.length
+    }
+    
     const impostorId = room.players[impostorIndex].id
 
     // Assign words
@@ -127,17 +151,17 @@ export const gameService = {
       { main: 'airplane', impostor: 'travel' },
       { main: 'library', impostor: 'books' },
       { main: 'restaurant', impostor: 'dining' },
-      { main: 'hospital', impostor: 'healthcare' },
+      { main: 'hospital', impostor: 'health' },
       { main: 'supermarket', impostor: 'shopping' },
       { main: 'telephone', impostor: 'communication' },
     ]
 
     const wordPair = wordPairs[Math.floor(Math.random() * wordPairs.length)]
 
-    // Assign words to players
+    // Assign words to players - impostor gets NO WORD
     const updatedPlayers = room.players.map((player) => ({
       ...player,
-      word: player.id === impostorId ? wordPair.impostor : wordPair.main,
+      word: player.id === impostorId ? null : wordPair.main,
       isImpostor: player.id === impostorId,
     }))
 
@@ -145,9 +169,10 @@ export const gameService = {
     await updateDoc(roomRef, {
       status: 'playing',
       currentPhase: 'description',
+      currentRound: nextRound,
+      impostorCycle: CycleNumber + 1,
       players: updatedPlayers,
       mainWord: wordPair.main,
-      impostorWord: wordPair.impostor,
       impostorId,
     })
   },
@@ -171,12 +196,28 @@ export const gameService = {
     })
   },
 
-  // Move to voting phase
+  // Move to voting phase (after 2 rounds)
   async moveToVoting(roomId: string): Promise<void> {
-    const roomRef = doc(db, 'gameRooms', roomId)
-    await updateDoc(roomRef, {
-      currentPhase: 'voting',
-    })
+    const room = await this.getGameRoom(roomId)
+    if (!room) throw new Error('Room not found')
+
+    const roundInCycle = ((room.currentRound - 1) % room.roundsPerImpostor) + 1
+
+    // If we've completed 2 rounds with same impostor, move to voting
+    if (roundInCycle === room.roundsPerImpostor) {
+      const roomRef = doc(db, 'gameRooms', roomId)
+      await updateDoc(roomRef, {
+        currentPhase: 'voting',
+        playerVotes: {},
+      })
+    } else {
+      // Otherwise go back to waiting for next round with same impostor
+      const roomRef = doc(db, 'gameRooms', roomId)
+      await updateDoc(roomRef, {
+        status: 'waiting',
+        currentPhase: undefined,
+      })
+    }
   },
 
   // Submit vote
@@ -247,7 +288,7 @@ export const gameService = {
     })
   },
 
-  // Reset game
+  // Reset game for next impostor or end
   async resetGame(roomId: string): Promise<void> {
     const room = await this.getGameRoom(roomId)
     if (!room) throw new Error('Room not found')
@@ -258,9 +299,14 @@ export const gameService = {
       isAlive: true,
     }))
 
+    // Check if we have more impostors to play
+    const nextCycle = (room.impostorCycle || 0) + 1
+    const hasMoreCycles = nextCycle <= room.totalImpostorCycles
+
     const roomRef = doc(db, 'gameRooms', roomId)
     await updateDoc(roomRef, {
-      status: 'waiting',
+      status: hasMoreCycles ? 'waiting' : 'ended',
+      currentPhase: undefined,
       players: resetPlayers,
     })
   },
